@@ -7,11 +7,13 @@
 class Parser {
     Scanner* scanner;
     Token *current, *previous;
+    Token *look = nullptr;
 
     bool match(Token::Type t);
     bool check(Token::Type t) const;
     bool advance();
     bool isAtEnd() const;
+    Token* peek();
 
 public:
     Parser(Scanner* s);

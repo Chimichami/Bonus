@@ -16,6 +16,18 @@ bool Parser::match(Token::Type t){ if (check(t)){ advance(); return true; } retu
 bool Parser::isAtEnd() const { return current && current->type==Token::END; }
 void Parser::consume(Token::Type t, const char* msg){ if (!match(t)) throw runtime_error(msg); }
 
+Token* Parser::peek() {
+    if (!look) look = scanner->nextToken();
+    return look;
+}
+
+bool Parser::advance() {
+    previous = current;
+    if (look) { current = look; look = nullptr; }
+    else { current = scanner->nextToken(); }
+    return true;
+}
+
 Program* Parser::parseProgram(){
     auto* prog = new Program();
     prog->slist.push_back(parseStm());
@@ -44,43 +56,37 @@ Stm* Parser::parseStm(){
 }
 
 // ---------- CExp ----------
-CExp* Parser::parseCExp(){
-    // FIRST(CExp) = FIRST(Expr) ∪ FIRST(SetExpr)
-    // Desambiguación por token actual
-    if (check(Token::NUM) || check(Token::LPAREN) || check(Token::ID) || check(Token::MINUS) || check(Token::SQRT)) {
-        // puede ser aritmética o set (si LPAREN/ID), probamos lookahead mínimo:
-        if (check(Token::LPAREN)) {
-            // podría ser (Expr) o (SetExpr): probamos a parsear Expr primero,
-            // pero una forma limpia es duplicar factor; aquí mantenemos simple:
-            // usaremos una estrategia: si tras '(' viene '{' o palabra de set,
-            // usamos SetExpr; si viene NUM/ID/(' o un op aritmético, Expr.
-        }
-        // Regla práctica: si próximo token claro de set es '{' o keyword cap/cup/\ -> SetExpr
-    }
+CExp* Parser::parseCExp() {
+    // 1) Set literal obvio
     if (check(Token::LBRACE)) {
         return new CExp(parseSetExpr());
     }
 
-    // Si empieza por ID, podría ser ambos; miramos 1 token más:
-    if (check(Token::ID)) {
-        // Heurística: si luego aparece cap/cup/\ o ')' o ';' sin aritméticos,
-        // igual funciona con SetExpr por SetFactor -> id
-        // Para mantenerlo determinista, prefiero: intentar SetExpr solo si
-        // el siguiente token entre {UNION,INTERSECT,DIFF,RPAREN,SEMICOL,COMMA}
-        // —pero Expr también acepta id solo. Ambas son válidas.
-        // Elegimos Expr por defecto salvo que veamos op de conjunto.
-        // Implementación simple:
-        Token* save = current; // ya es ID
-        advance(); // consume ID
-        bool isSet = check(Token::UNION) || check(Token::INTERSECT) || check(Token::DIFF);
-        // rollback
-        current = save;
-        previous = nullptr;
-        if (isSet) return new CExp(parseSetExpr());
-        else       return new CExp(parseExpr());
+    // 2) '(' podría ser (Expr) o (SetExpr)
+    if (check(Token::LPAREN)) {
+        Token* t1 = peek();
+        // Si lo siguiente es '{', interpretamos como (SetExpr)
+        if (t1 && t1->type == Token::LBRACE) {
+            return new CExp(parseSetExpr());
+        }
+        // En caso contrario, lo tratamos como Expr
+        return new CExp(parseExpr());
     }
 
-    // Por defecto: Expr
+    // 3) ID puede ser ambos; decide por el operador que sigue (sin consumir)
+    if (check(Token::ID)) {
+        Token* t1 = peek();
+        if (t1 && (t1->type == Token::UNION ||
+                   t1->type == Token::INTERSECT ||
+                   t1->type == Token::DIFF)) {
+            // Ej: id cup {...}, id cap id, id \ {..}
+            return new CExp(parseSetExpr());
+                   }
+        // Por defecto, aritmética (id solo o seguido de +,-,*,/,),;,etc.)
+        return new CExp(parseExpr());
+    }
+
+    // 4) NUM, '-', 'sqrt', etc. => aritmética
     return new CExp(parseExpr());
 }
 
