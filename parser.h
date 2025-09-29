@@ -1,3 +1,9 @@
+#pragma once
+#include <string>
+#include "token.h"
+#include "scanner.h"
+#include "ast.h"
+
 class Parser {
     Scanner* scanner;
     Token *current, *previous;

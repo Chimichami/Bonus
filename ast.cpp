@@ -1,5 +1,4 @@
 #include "ast.h"
-
 #include <complex.h>
 #include <iostream>
 

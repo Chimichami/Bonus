@@ -1,4 +1,12 @@
-// parser.cpp (cuerpo resumido y directo)
+
+#include <stdexcept>
+#include <cstdlib>
+#include <string>
+#include "token.h"
+#include "scanner.h"
+#include "ast.h"
+#include "parser.h"
+using namespace std;
 
 Parser::Parser(Scanner* s):scanner(s),current(nullptr),previous(nullptr){ advance(); }
 

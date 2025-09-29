@@ -3,6 +3,7 @@
 #include <fstream>
 #include "token.h"
 #include "scanner.h"
+#include <cctype>
 
 using namespace std;
 
