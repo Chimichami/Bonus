@@ -10,7 +10,6 @@ using namespace std;
 
 Parser::Parser(Scanner* s):scanner(s),current(nullptr),previous(nullptr){ advance(); }
 
-bool Parser::advance(){ previous = current; current = scanner->nextToken(); return true; }
 bool Parser::check(Token::Type t) const { return current && current->type==t; }
 bool Parser::match(Token::Type t){ if (check(t)){ advance(); return true; } return false; }
 bool Parser::isAtEnd() const { return current && current->type==Token::END; }
