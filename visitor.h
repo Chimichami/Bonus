@@ -1,51 +1,23 @@
 #ifndef VISITOR_H
 #define VISITOR_H
 #include "ast.h"
-#include <list>
+#include <unordered_map>
 
-class BinaryExp;
-class NumberExp;
-class SqrtExp;
-class Program;
-class PrintStm;
-class AssignStm;
+struct EvalVisitor : Visitor {
+    std::unordered_map<std::string, Value> mem;
 
-class Visitor {
-public:
-    virtual int visit(BinaryExp* exp) = 0;
-    virtual int visit(NumberExp* exp) = 0;
-    virtual int visit(IdExp* exp) = 0;
-    virtual int visit(SqrtExp* exp) = 0;
-    virtual int visit(Program* exp) = 0;
-    virtual int visit(PrintStm* exp) = 0;
-    virtual int visit(AssignStm* exp) = 0;
+    Value visit(NumberExp*) override;
+    Value visit(IdExp*) override;
+    Value visit(BinaryExp*) override;
+    Value visit(SqrtExp*) override;
+
+    Value visit(SetIdExp*) override;
+    Value visit(SetParenExp*) override;
+    Value visit(SetBinaryExp*) override;
+    Value visit(SetLiteralExp*) override;
+
+    void visit(AssignStm*) override;
+    void visit(PrintStm*) override;
 };
 
-class PrintVisitor : public Visitor {
-public:
-
-    int visit(BinaryExp* exp) override;
-    int visit(NumberExp* exp) override;
-    int visit(SqrtExp* exp) override;
-    int visit(PrintStm* exp) override;
-    int visit(AssignStm* exp) override;
-    int visit(Program* exp) override;
-    int visit(IdExp* exp) override;
-    void imprimir(Program* program);
-};
-
-class EVALVisitor : public Visitor {
-public:
-    int visit(BinaryExp* exp) override;
-    int visit(NumberExp* exp) override;
-    int visit(SqrtExp* exp) override;
-    int visit(PrintStm* exp) override;
-    int visit(IdExp* exp) override;
-    int visit(AssignStm* exp) override;
-    int visit(Program* exp) override;
-    void interprete(Program* program);
-};
-
-
-
-#endif // VISITOR_H
+#endif

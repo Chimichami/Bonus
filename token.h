@@ -8,35 +8,31 @@ using namespace std;
 
 class Token {
 public:
-    // Tipos de token
     enum Type {
-        PLUS,    // +
-        MINUS,   // -
-        MUL,     // *
-        DIV,     // /
-        POW,     // **
-        LPAREN,  // (
-        RPAREN,  // )
-        SQRT,    // sqrt
-        NUM,     // Número
-        ERR,     // Error
-        ID,      // ID
-        SEMICOL, // ;
-        PRINT,    // print
-        ASSIGN,   // =
-        END      // Fin de entrada
+        // aritmética
+        PLUS, MINUS, MUL, DIV,
+        // paréntesis
+        LPAREN, RPAREN,
+        // números e identificadores
+        NUM, ID,
+        // sentencia
+        PRINT, ASSIGN, SEMICOL,
+        // potencia y sqrt (opcional, puedes quitar si no lo usas)
+        POW, SQRT,
+        // conjuntos
+        LBRACE, RBRACE, COMMA,   // { } ,
+        UNION, INTERSECT, DIFF,  // cup cap \
+        // misceláneo
+        ERR, END
     };
 
-    // Atributos
     Type type;
     string text;
 
-    // Constructores
     Token(Type type);
     Token(Type type, char c);
-    Token(Type type, const string& source, int first, int last);
+    Token(Type type, const string& source, int first, int len);
 
-    // Sobrecarga de operadores de salida
     friend ostream& operator<<(ostream& outs, const Token& tok);
     friend ostream& operator<<(ostream& outs, const Token* tok);
 };

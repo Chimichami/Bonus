@@ -42,43 +42,44 @@ Token* Scanner::nextToken() {
 
     // Números
     if (isdigit(c)) {
-        current++;
-        while (current < input.length() && isdigit(input[current]))
-            current++;
-        token = new Token(Token::NUM, input, first, current - first);
+        int first = current++;
+        while (current < (int)input.size() && isdigit(input[current])) current++;
+        return new Token(Token::NUM, input, first, current - first);
     }
     // ID
-    else if (isalpha(c)) {
-        current++;
-        while (current < input.length() && isalnum(input[current]))
-            current++;
-        string lexema = input.substr(first, current - first);
-        if (lexema=="sqrt") return new Token(Token::SQRT, input, first, current - first);
-        else if (lexema=="print") return new Token(Token::PRINT, input, first, current - first);
-        else return new Token(Token::ID, input, first, current - first);
+    if (isalpha(c)) {
+        int first = current++;
+        while (current < (int)input.size() && isalnum(input[current])) current++;
+        string lex = input.substr(first, current - first);
+        if (lex == "print") return new Token(Token::PRINT, input, first, lex.size());
+        if (lex == "sqrt")  return new Token(Token::SQRT , input, first, lex.size()); // opcional
+        if (lex == "cup")   return new Token(Token::UNION, input, first, lex.size());
+        if (lex == "cap")   return new Token(Token::INTERSECT, input, first, lex.size());
+        return new Token(Token::ID, input, first, lex.size());
     }
     // Operadores
-    else if (strchr("+/-*();=", c)) {
+    if (strchr("+/-*();=,{}\\", c)) {
         switch (c) {
-            case ';': token = new Token(Token::SEMICOL,  c); break;
-            case '=': token = new Token(Token::ASSIGN, c); break;
-            case '+': token = new Token(Token::PLUS,  c); break;
-            case '-': token = new Token(Token::MINUS, c); break;
-            case '*': 
-            if (input[current+1]=='*')
-            {
-                current++;
-                token = new Token(Token::POW, input, first, current + 1 - first);
+            case '+': current++; return new Token(Token::PLUS, c);
+            case '-': current++; return new Token(Token::MINUS, c);
+            case '*': {
+                // soporta ** si quieres potencia
+                if (current + 1 < (int)input.size() && input[current+1] == '*') {
+                    int first = current; current += 2;
+                    return new Token(Token::POW, input, first, 2);
+                }
+                current++; return new Token(Token::MUL, c);
             }
-            else{
-                token = new Token(Token::MUL,   c);
-            }
-            break;
-            case '/': token = new Token(Token::DIV,   c); break;
-            case '(': token = new Token(Token::LPAREN,c); break;
-            case ')': token = new Token(Token::RPAREN,c); break;
+            case '/': current++; return new Token(Token::DIV, c);
+            case '(': current++; return new Token(Token::LPAREN, c);
+            case ')': current++; return new Token(Token::RPAREN, c);
+            case '=': current++; return new Token(Token::ASSIGN, c);
+            case ';': current++; return new Token(Token::SEMICOL, c);
+            case '{': current++; return new Token(Token::LBRACE, c);
+            case '}': current++; return new Token(Token::RBRACE, c);
+            case ',': current++; return new Token(Token::COMMA, c);
+            case '\\': current++; return new Token(Token::DIFF, c);
         }
-        current++;
     }
 
     // Carácter inválido

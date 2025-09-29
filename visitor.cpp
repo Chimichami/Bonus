@@ -1,170 +1,108 @@
 #include <iostream>
-#include <fstream>
 #include <cmath>
-#include "ast.h"
 #include "visitor.h"
 
+static int asInt(const Value& v){
+    if (v.kind != Value::INT) throw std::runtime_error("Se esperaba entero");
+    return v.i;
+}
+static std::set<int> asSet(const Value& v){
+    if (v.kind != Value::SET) throw std::runtime_error("Se esperaba conjunto");
+    return v.s;
+}
+static void expectInt(const Value& v){ if (v.kind!=Value::INT) throw std::runtime_error("Elemento de set debe ser entero"); }
 
-using namespace std;
-unordered_map<std::string, int> memoria;
-///////////////////////////////////////////////////////////////////////////////////
-int BinaryExp::accept(Visitor* visitor) {
-    return visitor->visit(this);
+Value NumberExp::accept(Visitor* v){ return v->visit(this); }
+Value IdExp::accept(Visitor* v){ return v->visit(this); }
+Value BinaryExp::accept(Visitor* v){ return v->visit(this); }
+Value SqrtExp::accept(Visitor* v){ return v->visit(this); }
+Value SetIdExp::accept(Visitor* v){ return v->visit(this); }
+Value SetParenExp::accept(Visitor* v){ return v->visit(this); }
+Value SetBinaryExp::accept(Visitor* v){ return v->visit(this); }
+Value SetLiteralExp::accept(Visitor* v){ return v->visit(this); }
+Value CExp::accept(Visitor* v){ return a? a->accept(v) : s->accept(v); }
+
+void AssignStm::accept(Visitor* v){ v->visit(this); }
+void PrintStm::accept(Visitor* v){ v->visit(this); }
+
+// ---- aritmética
+Value EvalVisitor::visit(NumberExp* e){ return Value::fromInt(e->value); }
+
+Value EvalVisitor::visit(IdExp* e){
+    auto it = mem.find(e->name);
+    if (it==mem.end()) return Value::fromInt(0); // o error si prefieres
+    return it->second;
 }
 
-int IdExp::accept(Visitor* visitor) {
-    return visitor->visit(this);
-}
-
-int NumberExp::accept(Visitor* visitor) {
-    return visitor->visit(this);
-}
-
-int SqrtExp::accept(Visitor* visitor) {
-    return visitor->visit(this);
-}
-
-int Program::accept(Visitor* visitor) {
-    return visitor->visit(this);
-}
-
-int AssignStm::accept(Visitor* visitor) {
-    return visitor->visit(this);
-}
-
-int PrintStm::accept(Visitor* visitor) {
-    return visitor->visit(this);
-}
-
-///////////////////////////////////////////////////////////////////////////////////
-
-int PrintVisitor::visit(BinaryExp* exp) {
-    exp->left->accept(this);
-    cout << ' ' << Exp::binopToChar(exp->op) << ' ';
-    exp->right->accept(this);
-    return 0;
-}
-
-int PrintVisitor::visit(NumberExp* exp) {
-    cout << exp->value;
-    return 0;
-}
-
-int PrintVisitor::visit(SqrtExp* exp) {
-    cout << "sqrt(";
-    exp->value->accept(this);
-    cout <<  ")";
-    return 0;
-}
-
-
-void PrintVisitor::imprimir(Program* programa){
-    if (programa)
-    {
-        cout << "Codigo:" << endl; 
-        programa->accept(this);
-        cout << endl;
+Value EvalVisitor::visit(BinaryExp* e){
+    int L = asInt(e->left->accept(this));
+    int R = asInt(e->right->accept(this));
+    switch (e->op){
+        case PLUS_OP:  return Value::fromInt(L+R);
+        case MINUS_OP: return Value::fromInt(L-R);
+        case MUL_OP:   return Value::fromInt(L*R);
+        case DIV_OP:   if (R==0) throw std::runtime_error("División por cero"); else return Value::fromInt(L/R);
+        case POW_OP:   return Value::fromInt((int)std::pow(L,R));
     }
-    return ;
+    return Value::fromInt(0);
 }
 
-///////////////////////////////////////////////////////////////////////////////////
-int EVALVisitor::visit(BinaryExp* exp) {
-    int result;
-    int v1 = exp->left->accept(this);
-    int v2 = exp->right->accept(this);
-    switch (exp->op) {
-        case PLUS_OP:
-            result = v1 + v2;
-            break;
-        case MINUS_OP:
-            result = v1 - v2;
-            break;
-        case MUL_OP:
-            result = v1 * v2;
-            break;
-        case DIV_OP:
-            if (v2 != 0)
-                result = v1 / v2;
-            else {
-                cout << "Error: división por cero" << endl;
-                result = 0;
-            }
-            break;
-        case POW_OP:
-            result = pow(v1,v2);
-            break;
-        default:
-            cout << "Operador desconocido" << endl;
-            result = 0;
+Value EvalVisitor::visit(SqrtExp* e){
+    int v = asInt(e->inner->accept(this));
+    if (v<0) throw std::runtime_error("sqrt de negativo");
+    return Value::fromInt((int)std::sqrt((double)v));
+}
+
+// ---- conjuntos
+Value EvalVisitor::visit(SetIdExp* e){
+    auto it = mem.find(e->name);
+    if (it==mem.end()) return Value::fromSet({});
+    if (it->second.kind != Value::SET) throw std::runtime_error("Id no es conjunto");
+    return it->second;
+}
+Value EvalVisitor::visit(SetParenExp* e){ return e->inner->accept(this); }
+
+Value EvalVisitor::visit(SetLiteralExp* e){
+    std::set<int> acc;
+    for (auto ce : e->elems) {
+        Value v = ce->accept(this);
+        expectInt(v);
+        acc.insert(v.i);
     }
-    return result;
+    return Value::fromSet(std::move(acc));
 }
 
-int EVALVisitor::visit(NumberExp* exp) {
-    return exp->value;
-}
-
-int EVALVisitor::visit(SqrtExp* exp) {
-    return floor(sqrt( exp->value->accept(this)));
-}
-
-
-void EVALVisitor::interprete(Program* programa){
-    if (programa)
-    {
-        cout << "Interprete:";
-        programa->accept(this);
-        cout<<endl;
+Value EvalVisitor::visit(SetBinaryExp* e){
+    std::set<int> A = asSet(e->left->accept(this));
+    std::set<int> B = asSet(e->right->accept(this));
+    std::set<int> R;
+    switch (e->op){
+        case UNION_OP:
+            R = A; R.insert(B.begin(), B.end()); break;
+        case INTERSECT_OP:
+            for (int x: A) if (B.count(x)) R.insert(x); break;
+        case DIFF_OP:
+            for (int x: A) if (!B.count(x)) R.insert(x); break;
     }
-    return;
-
+    return Value::fromSet(std::move(R));
 }
 
-///////////////////////////////////////////////////////////////////////
-
-int EVALVisitor::visit(PrintStm* stm) {
-    cout << stm->e->accept(this);
-    return 0;
+// ---- stmts
+void EvalVisitor::visit(AssignStm* s){
+    Value v = s->rhs->accept(this);
+    mem[s->id] = v;
 }
 
-int EVALVisitor::visit(AssignStm* stm) {
-    memoria[stm->id] = stm->rhs->accept(this);
-    return 0;
-}
-int EVALVisitor::visit(IdExp* exp) {
-    return memoria[exp->value];
-}
-
-
-int PrintVisitor::visit(IdExp* exp) {
-    cout << exp->value;
-    return 0;
-}
-int EVALVisitor::visit(Program* p) {
-    for(auto i:p->slist) {
-        i->accept(this);
+static void printValue(const Value& v){
+    if (v.kind==Value::INT) { std::cout << v.i << "\n"; }
+    else {
+        std::cout << "{";
+        bool first = true;
+        for (int x: v.s){ if(!first) std::cout<<","; std::cout<<x; first=false; }
+        std::cout << "}\n";
     }
-    return 0;
 }
-
-int PrintVisitor::visit(PrintStm* stm) {
-    cout << "print(";
-    stm -> e ->accept(this);
-    cout << ")" << endl;
-    return 0;
-}
-
-int PrintVisitor::visit(AssignStm* stm) {
-    cout << stm->id << " = ";
-    stm->rhs->accept(this);
-    cout << endl;
-    return 0;
-}
-
-int PrintVisitor::visit(Program* p) {
-    for(auto i:p->slist) {
-        i->accept(this);
-    }
-    return 0;
+void EvalVisitor::visit(PrintStm* s){
+    Value v = s->e->accept(this);
+    printValue(v);
 }
